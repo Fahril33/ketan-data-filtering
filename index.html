@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Throw-It-App | Relief Needs Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div class="dashboard-container">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo-icon">📦</div>
+          <div class="brand-text">
+            <h2>Throw-It-App</h2>
+            <p>Relief Needs Analytics</p>
+          </div>
+        </div>
+
+        <div class="file-uploader-section">
+          <h3>📂 Data Source</h3>
+          <div id="drop-zone" class="drop-zone">
+            <span class="drop-zone-text">Drag & drop .xlsx or click</span>
+            <input type="file" id="xlsx-file" accept=".xlsx" class="file-input" />
+          </div>
+          <div id="file-status" class="file-status">Using default preloaded data</div>
+        </div>
+
+        <div class="filter-group">
+          <h3>🔍 Search Kebutuhan</h3>
+          <div class="search-box">
+            <input type="text" id="search-input" placeholder="e.g. obat magh, susu..." />
+            <button id="clear-search" class="clear-search-btn">&times;</button>
+          </div>
+          <div class="search-options">
+            <label class="checkbox-container">
+              <input type="checkbox" id="case-sensitive-chk" />
+              <span class="checkmark"></span>
+              Case Sensitive
+            </label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <h3>📍 Lokasi</h3>
+          <div class="select-container">
+            <label for="desa-select">Desa</label>
+            <select id="desa-select"><option value="all">Semua Desa</option></select>
+          </div>
+          <div class="select-container">
+            <label for="dusun-select">Dusun</label>
+            <select id="dusun-select"><option value="all">Semua Dusun</option></select>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <h3>👥 Kategori Rentan</h3>
+          <div class="categories-list" id="categories-filter-list">
+            <!-- Populated dynamically from data -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="main-content">
+        <header class="top-header">
+          <div class="header-info-container" style="display: flex; align-items: center; gap: 16px;">
+            <button id="toggle-sidebar" class="btn btn-secondary" style="font-size: 16px; padding: 8px 12px;" title="Sembunyikan / Tampilkan Sidebar">☰</button>
+            <div class="header-info">
+              <h1>Disaster Relief Needs Dashboard</h1>
+              <p>Kebutuhan spesifik per item, per kategori rentan, per daerah</p>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button id="theme-toggle" class="btn btn-secondary">☀️ Mode Terang</button>
+            <div class="live-indicator">
+              <span class="dot blinking"></span>
+              <span class="indicator-text">Active</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- KPI CARDS -->
+        <section class="kpi-cards-grid" id="kpi-grid">
+          <!-- Populated dynamically from data categories -->
+        </section>
+
+        <!-- PRIMARY VIEW: NEEDS AGGREGATION TABLE + CHARTS SPLIT -->
+        <section class="needs-split-container" id="needs-split-container">
+          <!-- LEFT: Table Card -->
+          <div class="dashboard-card needs-table-panel" id="needs-summary-card">
+            <div class="card-header flex-header">
+              <div>
+                <h2>📦 Ringkasan Kebutuhan per Item</h2>
+                <p>Jumlah individu yang membutuhkan setiap item, dikelompokkan per kategori rentan</p>
+              </div>
+              <div class="header-actions">
+                <button id="toggle-charts-panel" class="btn btn-accent" title="Tampilkan / Sembunyikan Panel Chart">📊 Charts</button>
+                <button id="print-needs-summary" class="btn btn-primary">🖨️ Cetak</button>
+                <button id="download-needs-csv" class="btn btn-secondary">📥 CSV</button>
+              </div>
+            </div>
+            <div class="table-scroll-container">
+              <table class="data-table" id="needs-summary-table">
+                <thead id="needs-summary-thead">
+                  <!-- Header columns built dynamically -->
+                </thead>
+                <tbody id="needs-summary-tbody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- RIGHT: Charts Panel (hidden by default) -->
+          <div class="charts-side-panel" id="charts-side-panel">
+            <div class="charts-panel-header">
+              <h3>📊 Visualisasi Data</h3>
+              <button id="close-charts-panel" class="btn-close-panel" title="Tutup Panel Charts">✕</button>
+            </div>
+            <div class="charts-panel-grid">
+              <div class="chart-panel-card">
+                <div class="chart-panel-title">🏆 Top Kebutuhan</div>
+                <div class="chart-panel-subtitle">Item paling banyak dibutuhkan</div>
+                <div class="chart-container-panel"><canvas id="needs-chart"></canvas></div>
+              </div>
+              <div class="chart-panel-card">
+                <div class="chart-panel-title">🗺️ Distribusi per Desa</div>
+                <div class="chart-panel-subtitle">Sebaran kebutuhan berdasarkan lokasi</div>
+                <div class="chart-container-panel"><canvas id="desa-distribution-chart"></canvas></div>
+              </div>
+              <div class="chart-panel-card">
+                <div class="chart-panel-title">👥 Kategori Rentan</div>
+                <div class="chart-panel-subtitle">Proporsi individu berdasarkan kohort</div>
+                <div class="chart-container-panel"><canvas id="cohort-chart"></canvas></div>
+              </div>
+              <div class="chart-panel-card" style="display: flex; flex-direction: column;">
+                <div class="chart-panel-title">🩺 Kebutuhan Khusus</div>
+                <div class="chart-panel-subtitle">Seluruh item khusus (tanpa filter, gulir untuk melihat lengkap)</div>
+                <div style="height: 320px; overflow-y: auto; position: relative; border-radius: 8px; background: rgba(0,0,0,0.1); padding: 4px;">
+                  <div id="specific-needs-chart-container" style="position: relative; width: 100%;">
+                    <canvas id="specific-needs-chart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- INDIVIDUAL EXPLORER -->
+        <section class="dashboard-card">
+          <div class="card-header flex-header">
+            <div>
+              <h2>👤 Individual Explorer</h2>
+              <p>Detail per individu beserta kebutuhan spesifiknya</p>
+            </div>
+            <div class="pagination-summary" id="table-pagination-summary">0 records</div>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="individual-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nama Rentan</th>
+                  <th>Kepala Keluarga</th>
+                  <th>Umur</th>
+                  <th>Kategori</th>
+                  <th>Lokasi</th>
+                  <th>Kebutuhan</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="pagination-controls" id="table-pagination-controls"></div>
+        </section>
+      </main>
+    </div>
+
+    <!-- DETAIL MODAL -->
+    <div id="details-modal" class="modal">
+      <div class="modal-content glass">
+        <span class="close-modal">&times;</span>
+        <div class="modal-header">
+          <div class="modal-icon">👤</div>
+          <div>
+            <h2 id="modal-rentan-name"></h2>
+            <p id="modal-individual-id"></p>
+          </div>
+        </div>
+        <div class="modal-body-grid">
+          <div class="modal-section">
+            <h3>Demografi</h3>
+            <p><strong>Umur:</strong> <span id="modal-age"></span></p>
+            <p><strong>Gender:</strong> <span id="modal-gender"></span></p>
+            <p><strong>Kepala Keluarga:</strong> <span id="modal-kk-name"></span></p>
+            <p><strong>NIK / No KK:</strong> <span id="modal-nik"></span></p>
+            <p><strong>No HP:</strong> <span id="modal-phone"></span></p>
+          </div>
+          <div class="modal-section">
+            <h3>Lokasi</h3>
+            <p><strong>Kecamatan:</strong> <span id="modal-kecamatan"></span></p>
+            <p><strong>Desa:</strong> <span id="modal-desa"></span></p>
+            <p><strong>Dusun:</strong> <span id="modal-dusun"></span></p>
+            <p><strong>Asal RT/RW:</strong> <span id="modal-asal"></span></p>
+          </div>
+          <div class="modal-section wide">
+            <h3>Kategori Rentan</h3>
+            <div id="modal-categories" class="tags-container"></div>
+            <p style="margin-top: 10px;"><strong>Detail Kondisi:</strong></p>
+            <div class="detail-box" id="modal-detail-usia"></div>
+          </div>
+          <div class="modal-section wide">
+            <h3>Semua Kebutuhan (Original)</h3>
+            <div id="modal-all-needs" class="tags-container-colored"></div>
+          </div>
+          <div class="modal-section wide" id="modal-notes-section">
+            <h3>Catatan Petugas</h3>
+            <div class="detail-box alert-box" id="modal-notes"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span id="modal-surveyor"></span>
+          <span id="modal-timestamp"></span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
