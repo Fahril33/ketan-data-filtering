@@ -1,6 +1,5 @@
 import Chart from 'chart.js/auto';
 import * as XLSX from 'xlsx';
-import defaultData from '../survey_data.json';
 import './style.css';
 
 // ─── ONE-TIME (NON-DAILY) ITEM DETECTION ────────────────────────────
@@ -37,7 +36,7 @@ function getProjectionLabel(needName) {
 }
 
 // ─── APPLICATION STATE ──────────────────────────────────────────────
-let allData = [...defaultData];
+let allData = [];
 let filteredData = [];
 let currentPage = 1;
 const pageSize = 15;
@@ -185,12 +184,33 @@ function initUI() {
     applyAndRender();
   });
 
-  // File upload
+  // File upload (Sidebar)
   const dropZone = document.getElementById('drop-zone');
   const fileInput = document.getElementById('xlsx-file');
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); });
-  dropZone.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]); });
-  fileInput.addEventListener('change', e => { if (e.target.files.length) handleUpload(e.target.files[0]); });
+  if (dropZone && fileInput) {
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', e => { if (e.target.files.length) handleUpload(e.target.files[0]); });
+  }
+
+  // File upload (Main Empty State Card)
+  const mainDropZone = document.getElementById('main-drop-zone');
+  const mainFileInput = document.getElementById('main-xlsx-file');
+  if (mainDropZone && mainFileInput) {
+    mainDropZone.addEventListener('dragover', e => { e.preventDefault(); mainDropZone.classList.add('dragover'); });
+    mainDropZone.addEventListener('dragleave', () => { mainDropZone.classList.remove('dragover'); });
+    mainDropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      mainDropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files[0]);
+    });
+    mainFileInput.addEventListener('change', e => { if (e.target.files.length) handleUpload(e.target.files[0]); });
+  }
 
   // Modal
   const modal = document.getElementById('details-modal');
@@ -228,6 +248,18 @@ function initUI() {
 
 // ─── FILTER & RENDER PIPELINE ───────────────────────────────────────
 function applyAndRender() {
+  const emptyState = document.getElementById('empty-state-view');
+  const contentWrapper = document.getElementById('dashboard-content-wrapper');
+
+  if (allData.length === 0) {
+    if (emptyState) emptyState.style.display = 'flex';
+    if (contentWrapper) contentWrapper.style.display = 'none';
+    return;
+  } else {
+    if (emptyState) emptyState.style.display = 'none';
+    if (contentWrapper) contentWrapper.style.display = 'flex';
+  }
+
   filteredData = allData.filter(row => {
     if (selectedDesa !== 'all' && row.desa !== selectedDesa) return false;
     if (selectedDusun !== 'all' && row.dusun !== selectedDusun) return false;
@@ -814,7 +846,16 @@ function getBadge(cat) {
 // ─── CLIENT-SIDE XLSX UPLOAD & PARSE ────────────────────────────────
 function handleUpload(file) {
   const status = document.getElementById('file-status');
-  status.innerHTML = '⚡ Processing…'; status.style.color = 'var(--color-warning)';
+  const mainStatus = document.getElementById('main-file-status');
+  const processingText = '⚡ Memproses data…';
+  
+  if (status) {
+    status.innerHTML = processingText; status.style.color = 'var(--color-warning)';
+  }
+  if (mainStatus) {
+    mainStatus.innerHTML = processingText; mainStatus.style.color = 'var(--color-warning)';
+  }
+
   const reader = new FileReader();
   reader.onload = e => {
     try {
@@ -863,12 +904,24 @@ function handleUpload(file) {
       if (dusunSel) dusunSel.value = 'all';
 
       allData = clientParse(structured);
-      status.innerHTML = `✅ ${file.name} (${allData.length} records)`; status.style.color = 'var(--color-success)';
+      const successText = `✅ ${file.name} (${allData.length} records)`;
+      if (status) {
+        status.innerHTML = successText; status.style.color = 'var(--color-success)';
+      }
+      if (mainStatus) {
+        mainStatus.innerHTML = successText; mainStatus.style.color = 'var(--color-success)';
+      }
       rebuildDynamicFilters();
       applyAndRender();
     } catch (err) {
       console.error(err);
-      status.innerHTML = `❌ ${err.message}`; status.style.color = 'var(--color-danger)';
+      const errorText = `❌ ${err.message}`;
+      if (status) {
+        status.innerHTML = errorText; status.style.color = 'var(--color-danger)';
+      }
+      if (mainStatus) {
+        mainStatus.innerHTML = errorText; mainStatus.style.color = 'var(--color-danger)';
+      }
     }
   };
   reader.readAsArrayBuffer(file);

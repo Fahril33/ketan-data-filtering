@@ -27,7 +27,7 @@
             <span class="drop-zone-text">Drag & drop .xlsx or click</span>
             <input type="file" id="xlsx-file" accept=".xlsx" class="file-input" />
           </div>
-          <div id="file-status" class="file-status">Using default preloaded data</div>
+          <div id="file-status" class="file-status">Belum ada file terunggah</div>
         </div>
 
         <div class="filter-group">
@@ -84,101 +84,117 @@
           </div>
         </header>
 
-        <!-- KPI CARDS -->
-        <section class="kpi-cards-grid" id="kpi-grid">
-          <!-- Populated dynamically from data categories -->
-        </section>
-
-        <!-- PRIMARY VIEW: NEEDS AGGREGATION TABLE + CHARTS SPLIT -->
-        <section class="needs-split-container" id="needs-split-container">
-          <!-- LEFT: Table Card -->
-          <div class="dashboard-card needs-table-panel" id="needs-summary-card">
-            <div class="card-header flex-header">
-              <div>
-                <h2>📦 Ringkasan Kebutuhan per Item</h2>
-                <p>Jumlah individu yang membutuhkan setiap item, dikelompokkan per kategori rentan</p>
-              </div>
-              <div class="header-actions">
-                <button id="toggle-charts-panel" class="btn btn-accent" title="Tampilkan / Sembunyikan Panel Chart">📊 Charts</button>
-                <button id="print-needs-summary" class="btn btn-primary">🖨️ Cetak</button>
-                <button id="download-needs-csv" class="btn btn-secondary">📥 CSV</button>
-              </div>
+        <!-- EMPTY STATE VIEW -->
+        <div id="empty-state-view" class="empty-state-view">
+          <div class="empty-state-content">
+            <div class="empty-state-icon">📥</div>
+            <h2>Belum Ada Data Terimpor</h2>
+            <p style="margin-bottom: 20px;">Silakan seret & lepas berkas Excel (.xlsx) atau klik area di bawah untuk memulai analisis</p>
+            <div id="main-drop-zone" class="main-drop-zone">
+              <span class="main-drop-zone-text" style="color: var(--text-secondary); font-size: 14px; font-weight: 500;">Pilih berkas Excel (.xlsx) di sini</span>
+              <input type="file" id="main-xlsx-file" accept=".xlsx" class="file-input" style="opacity: 0; position: absolute; top:0; left:0; width:100%; height:100%; cursor:pointer;" />
             </div>
-            <div class="table-scroll-container">
-              <table class="data-table" id="needs-summary-table">
-                <thead id="needs-summary-thead">
-                  <!-- Header columns built dynamically -->
-                </thead>
-                <tbody id="needs-summary-tbody">
-                  <!-- Populated dynamically -->
-                </tbody>
-              </table>
-            </div>
+            <div id="main-file-status" class="file-status" style="margin-top: 12px; font-weight: 600;"></div>
           </div>
+        </div>
 
-          <!-- RIGHT: Charts Panel (hidden by default) -->
-          <div class="charts-side-panel" id="charts-side-panel">
-            <div class="charts-panel-header">
-              <h3>📊 Visualisasi Data</h3>
-              <button id="close-charts-panel" class="btn-close-panel" title="Tutup Panel Charts">✕</button>
+        <div id="dashboard-content-wrapper" style="display: none;">
+          <!-- KPI CARDS -->
+          <section class="kpi-cards-grid" id="kpi-grid">
+            <!-- Populated dynamically from data categories -->
+          </section>
+
+          <!-- PRIMARY VIEW: NEEDS AGGREGATION TABLE + CHARTS SPLIT -->
+          <section class="needs-split-container" id="needs-split-container">
+            <!-- LEFT: Table Card -->
+            <div class="dashboard-card needs-table-panel" id="needs-summary-card">
+              <div class="card-header flex-header">
+                <div>
+                  <h2>📦 Ringkasan Kebutuhan per Item</h2>
+                  <p>Jumlah individu yang membutuhkan setiap item, dikelompokkan per kategori rentan</p>
+                </div>
+                <div class="header-actions">
+                  <button id="toggle-charts-panel" class="btn btn-accent" title="Tampilkan / Sembunyikan Panel Chart">📊 Charts</button>
+                  <button id="print-needs-summary" class="btn btn-primary">🖨️ Cetak</button>
+                  <button id="download-needs-csv" class="btn btn-secondary">📥 CSV</button>
+                </div>
+              </div>
+              <div class="table-scroll-container">
+                <table class="data-table" id="needs-summary-table">
+                  <thead id="needs-summary-thead">
+                    <!-- Header columns built dynamically -->
+                  </thead>
+                  <tbody id="needs-summary-tbody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div class="charts-panel-grid">
-              <div class="chart-panel-card">
-                <div class="chart-panel-title">🏆 Top Kebutuhan</div>
-                <div class="chart-panel-subtitle">Item paling banyak dibutuhkan</div>
-                <div class="chart-container-panel"><canvas id="needs-chart"></canvas></div>
+
+            <!-- RIGHT: Charts Panel (hidden by default) -->
+            <div class="charts-side-panel" id="charts-side-panel">
+              <div class="charts-panel-header">
+                <h3>📊 Visualisasi Data</h3>
+                <button id="close-charts-panel" class="btn-close-panel" title="Tutup Panel Charts">✕</button>
               </div>
-              <div class="chart-panel-card">
-                <div class="chart-panel-title">🗺️ Distribusi per Desa</div>
-                <div class="chart-panel-subtitle">Sebaran kebutuhan berdasarkan lokasi</div>
-                <div class="chart-container-panel"><canvas id="desa-distribution-chart"></canvas></div>
-              </div>
-              <div class="chart-panel-card">
-                <div class="chart-panel-title">👥 Kategori Rentan</div>
-                <div class="chart-panel-subtitle">Proporsi individu berdasarkan kohort</div>
-                <div class="chart-container-panel"><canvas id="cohort-chart"></canvas></div>
-              </div>
-              <div class="chart-panel-card" style="display: flex; flex-direction: column;">
-                <div class="chart-panel-title">🩺 Kebutuhan Khusus</div>
-                <div class="chart-panel-subtitle">Seluruh item khusus (tanpa filter, gulir untuk melihat lengkap)</div>
-                <div style="height: 320px; overflow-y: auto; position: relative; border-radius: 8px; background: rgba(0,0,0,0.1); padding: 4px;">
-                  <div id="specific-needs-chart-container" style="position: relative; width: 100%;">
-                    <canvas id="specific-needs-chart"></canvas>
+              <div class="charts-panel-grid">
+                <div class="chart-panel-card">
+                  <div class="chart-panel-title">🏆 Top Kebutuhan</div>
+                  <div class="chart-panel-subtitle">Item paling banyak dibutuhkan</div>
+                  <div class="chart-container-panel"><canvas id="needs-chart"></canvas></div>
+                </div>
+                <div class="chart-panel-card">
+                  <div class="chart-panel-title">🗺️ Distribusi per Desa</div>
+                  <div class="chart-panel-subtitle">Sebaran kebutuhan berdasarkan lokasi</div>
+                  <div class="chart-container-panel"><canvas id="desa-distribution-chart"></canvas></div>
+                </div>
+                <div class="chart-panel-card">
+                  <div class="chart-panel-title">👥 Kategori Rentan</div>
+                  <div class="chart-panel-subtitle">Proporsi individu berdasarkan kohort</div>
+                  <div class="chart-container-panel"><canvas id="cohort-chart"></canvas></div>
+                </div>
+                <div class="chart-panel-card" style="display: flex; flex-direction: column;">
+                  <div class="chart-panel-title">🩺 Kebutuhan Khusus</div>
+                  <div class="chart-panel-subtitle">Seluruh item khusus (tanpa filter, gulir untuk melihat lengkap)</div>
+                  <div style="height: 320px; overflow-y: auto; position: relative; border-radius: 8px; background: rgba(0,0,0,0.1); padding: 4px;">
+                    <div id="specific-needs-chart-container" style="position: relative; width: 100%;">
+                      <canvas id="specific-needs-chart"></canvas>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <!-- INDIVIDUAL EXPLORER -->
-        <section class="dashboard-card">
-          <div class="card-header flex-header">
-            <div>
-              <h2>👤 Individual Explorer</h2>
-              <p>Detail per individu beserta kebutuhan spesifiknya</p>
+          <!-- INDIVIDUAL EXPLORER -->
+          <section class="dashboard-card">
+            <div class="card-header flex-header">
+              <div>
+                <h2>👤 Individual Explorer</h2>
+                <p>Detail per individu beserta kebutuhan spesifiknya</p>
+              </div>
+              <div class="pagination-summary" id="table-pagination-summary">0 records</div>
             </div>
-            <div class="pagination-summary" id="table-pagination-summary">0 records</div>
-          </div>
-          <div class="table-container">
-            <table class="data-table" id="individual-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Nama Rentan</th>
-                  <th>Kepala Keluarga</th>
-                  <th>Umur</th>
-                  <th>Kategori</th>
-                  <th>Lokasi</th>
-                  <th>Kebutuhan</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div class="pagination-controls" id="table-pagination-controls"></div>
-        </section>
+            <div class="table-container">
+              <table class="data-table" id="individual-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nama Rentan</th>
+                    <th>Kepala Keluarga</th>
+                    <th>Umur</th>
+                    <th>Kategori</th>
+                    <th>Lokasi</th>
+                    <th>Kebutuhan</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="pagination-controls" id="table-pagination-controls"></div>
+          </section>
+        </div>
       </main>
     </div>
 
