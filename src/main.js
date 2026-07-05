@@ -1,5 +1,6 @@
 import Chart from 'chart.js/auto';
 import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 import './style.css';
 
 // ─── ONE-TIME (NON-DAILY) ITEM DETECTION ────────────────────────────
@@ -57,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initUI();
   rebuildDynamicFilters();
   applyAndRender();
+  fetchSpreadsheetData();
 });
 
 // ─── Dynamically derive unique values from current dataset ──────────
@@ -925,6 +927,91 @@ function handleUpload(file) {
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+function fetchSpreadsheetData() {
+  const url = 'https://docs.google.com/spreadsheets/d/1gbkJVWRwn36hNZvyEeL-e06xgIifLgbwNqloPEeoiFQ/export?format=csv&gid=1362284992';
+  
+  const status = document.getElementById('file-status');
+  const mainStatus = document.getElementById('main-file-status');
+  const processingText = '⚡ Mengambil data dari Spreadsheet...';
+  
+  if (status) {
+    status.innerHTML = processingText; status.style.color = 'var(--color-warning)';
+  }
+  if (mainStatus) {
+    mainStatus.innerHTML = processingText; mainStatus.style.color = 'var(--color-warning)';
+  }
+
+  Papa.parse(url, {
+    download: true,
+    complete: function(results) {
+      try {
+        const rawRows = results.data;
+        if (rawRows.length < 2) throw new Error('No valid data found in spreadsheet');
+        
+        const structured = {};
+        for (let i = 1; i < rawRows.length; i++) {
+          const rd = rawRows[i]; if (!rd) continue;
+          const rowDict = {}; let has = false;
+          for (let c = 0; c < rd.length; c++) {
+            if (rd[c] !== null && rd[c] !== undefined && String(rd[c]).trim()) {
+              rowDict[colLetter(c+1)] = rd[c]; has = true;
+            }
+          }
+          if (has) {
+            structured[1 + i] = rowDict;
+          }
+        }
+
+        // Reset filters
+        selectedDesa = 'all';
+        selectedDusun = 'all';
+        selectedCategories.clear();
+        searchQuery = '';
+
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = '';
+        const clearBtn = document.getElementById('clear-search');
+        if (clearBtn) clearBtn.style.display = 'none';
+
+        const desaSel = document.getElementById('desa-select');
+        if (desaSel) desaSel.value = 'all';
+        const dusunSel = document.getElementById('dusun-select');
+        if (dusunSel) dusunSel.value = 'all';
+
+        allData = clientParse(structured);
+        const successText = `✅ Data Spreadsheet (${allData.length} records)`;
+        if (status) {
+          status.innerHTML = successText; status.style.color = 'var(--color-success)';
+        }
+        if (mainStatus) {
+          mainStatus.innerHTML = successText; mainStatus.style.color = 'var(--color-success)';
+        }
+        rebuildDynamicFilters();
+        applyAndRender();
+      } catch (err) {
+        console.error(err);
+        const errorText = `❌ ${err.message}`;
+        if (status) {
+          status.innerHTML = errorText; status.style.color = 'var(--color-danger)';
+        }
+        if (mainStatus) {
+          mainStatus.innerHTML = errorText; mainStatus.style.color = 'var(--color-danger)';
+        }
+      }
+    },
+    error: function(err) {
+      console.error(err);
+      const errorText = `❌ Gagal mengambil data: ${err.message || 'Error jaringan'}`;
+      if (status) {
+        status.innerHTML = errorText; status.style.color = 'var(--color-danger)';
+      }
+      if (mainStatus) {
+        mainStatus.innerHTML = errorText; mainStatus.style.color = 'var(--color-danger)';
+      }
+    }
+  });
 }
 
 function colLetter(n) {
