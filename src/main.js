@@ -44,6 +44,7 @@ const pageSize = 15;
 
 let searchQuery = '';
 let isCaseSensitive = false;
+let isExactMatch = false;
 let selectedDesa = 'all';
 let selectedDusun = 'all';
 let selectedCategories = new Set(); // multi-select from data
@@ -185,6 +186,13 @@ function initUI() {
     isCaseSensitive = e.target.checked;
     applyAndRender();
   });
+  const exactMatchChk = document.getElementById('exact-match-chk');
+  if (exactMatchChk) {
+    exactMatchChk.addEventListener('change', e => {
+      isExactMatch = e.target.checked;
+      applyAndRender();
+    });
+  }
 
   // File upload (Sidebar)
   const dropZone = document.getElementById('drop-zone');
@@ -270,7 +278,7 @@ function applyAndRender() {
       const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
       const match = row.all_needs.some(n => {
         const item = isCaseSensitive ? n : n.toLowerCase();
-        return item.includes(q);
+        return isExactMatch ? item === q : item.includes(q);
       });
       if (!match) return false;
     }
@@ -340,7 +348,7 @@ function renderNeedsSummaryTable() {
       if (searchQuery.trim()) {
         const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
         const item = isCaseSensitive ? need : need.toLowerCase();
-        if (!item.includes(q)) return;
+        if (!(isExactMatch ? item === q : item.includes(q))) return;
       }
       if (!agg[need]) agg[need] = { total: 0, byCat: {}, byDesa: {} };
       agg[need].total++;
@@ -450,7 +458,8 @@ function renderGeoBreakdown() {
       row.all_needs.forEach(need => {
         if (searchQuery.trim()) {
           const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
-          if (!(isCaseSensitive ? need : need.toLowerCase()).includes(q)) return;
+          const item = isCaseSensitive ? need : need.toLowerCase();
+          if (!(isExactMatch ? item === q : item.includes(q))) return;
         }
         const key = `${row.desa}||${row.dusun}||${cat}||${need}`;
         if (!agg[key]) agg[key] = { desa: row.desa, dusun: row.dusun, cat, need, count: 0 };
@@ -491,7 +500,8 @@ function renderCharts() {
     row.all_needs.forEach(n => {
       if (searchQuery.trim()) {
         const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
-        if (!(isCaseSensitive ? n : n.toLowerCase()).includes(q)) return;
+        const item = isCaseSensitive ? n : n.toLowerCase();
+        if (!(isExactMatch ? item === q : item.includes(q))) return;
       }
       needsFreq[n] = (needsFreq[n]||0)+1;
     });
@@ -548,7 +558,8 @@ function renderCharts() {
     row.all_needs.forEach(need => {
       if (searchQuery.trim()) {
         const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
-        if (!(isCaseSensitive ? need : need.toLowerCase()).includes(q)) return;
+        const item = isCaseSensitive ? need : need.toLowerCase();
+        if (!(isExactMatch ? item === q : item.includes(q))) return;
       }
       const proj = getProjection(need, 1);
       desaFreq[row.desa] = (desaFreq[row.desa] || 0) + proj;
@@ -676,7 +687,8 @@ function renderIndividualTable() {
       let cls = 'tag';
       if (searchQuery.trim()) {
         const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
-        if ((isCaseSensitive ? n : n.toLowerCase()).includes(q)) cls = 'tag tag-highlight';
+        const item = isCaseSensitive ? n : n.toLowerCase();
+        if (isExactMatch ? item === q : item.includes(q)) cls = 'tag tag-highlight';
       }
       return `<span class="${cls}">${n}</span>`;
     }).join(' ');
@@ -760,7 +772,7 @@ function exportNeedsSummaryCSV() {
       if (searchQuery.trim()) {
         const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
         const item = isCaseSensitive ? need : need.toLowerCase();
-        if (!item.includes(q)) return;
+        if (!(isExactMatch ? item === q : item.includes(q))) return;
       }
       if (!agg[need]) agg[need] = { total: 0, byCat: {}, byDesa: {} };
       agg[need].total++;
@@ -799,7 +811,7 @@ function exportGeoCSV() {
         if (searchQuery.trim()) {
           const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
           const item = isCaseSensitive ? need : need.toLowerCase();
-          if (!item.includes(q)) return;
+          if (!(isExactMatch ? item === q : item.includes(q))) return;
         }
         const key = `${row.desa}||${row.dusun}||${cat}||${need}`;
         if (!agg[key]) agg[key] = { desa: row.desa, dusun: row.dusun, cat, need, count: 0 };
