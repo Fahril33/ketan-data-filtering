@@ -1293,10 +1293,13 @@ body {
 
   /* Hide everything except the needs summary table card */
   .sidebar,
-  .main-content > :not(#needs-split-container),
+  .top-header,
+  #empty-state-view,
+  #kpi-grid,
   .header-actions,
   .charts-side-panel,
-  .modal {
+  .modal,
+  #dashboard-content-wrapper > :not(#needs-split-container) {
     display: none !important;
   }
 
