@@ -1064,17 +1064,34 @@ function clientParse(rows) {
     if(ua.C&&/^\d+(\.0)?$/.test(ua.C)){rec.dusun=String(parseInt(parseFloat(ua.C)));delete ua.C;}
     // Umur (L)
     if(ua.L&&/^\d+(\.0)?$/.test(ua.L)){rec.umur=parseFloat(ua.L);delete ua.L;}
-    // Dropdown
-    const dd=['Selimut, Sembako, Kelambu','Susu Formula, Popok, Obat obantan balita','Gangguan perilaku'];
-    for(const c of Object.keys(ua)){if(dd.includes(ua[c])){rec.needs_dropdown=ua[c].split(',').map(s=>s.trim());delete ua[c];}}
+    // Dropdown (dinonaktifkan sesuai permintaan: kebutuhan hanya dari kolom O)
+    // const dd=['Selimut, Sembako, Kelambu','Susu Formula, Popok, Obat obantan balita','Gangguan perilaku'];
+    // for(const c of Object.keys(ua)){if(dd.includes(ua[c])){rec.needs_dropdown=ua[c].split(',').map(s=>s.trim());delete ua[c];}}
     // Category
     const co=['Bayi / Balita','Lanjut Usia (Lansia)','Ibu Hamil','Ibu Menyusui','Disabilitas (Fisik / Sensorik / Mental)','Penyakit Kronis'];
     for(const c of Object.keys(ua)){const s=ua[c];if(co.some(o=>s===o||s.startsWith(o))){rec.kategori_rentan=s.split(',').map(x=>x.trim());delete ua[c];}}
-    // Details vs needs
+    
+    // Kebutuhan spesifik - KHUSUS dari kolom O
+    if(ua.O) {
+      rec.needs_specific = String(ua.O).split(/,|\bdan\b|&|\+/).map(x=>x.trim()).filter(Boolean);
+      delete ua.O;
+    }
+    
+    // Details vs notes
     const medWords=['bulan','tahun','hari','kandungan','menyusui','penyakit','stroke','diabetes','asma','hipertensi','jantung','gula','katarak','gatal','syaraf','disabilitas','tuna','kolestrol','urat'];
-    const needWords=['susu','obat','popok','pempers','selimut','kelambu','sembako','terpal','kasur','bantuan','alat','mandi','telon','biskuit','kursi roda','tongkat'];
-    for(const c of Object.keys(ua)){const s=ua[c],lo=s.toLowerCase();if(medWords.some(w=>lo.includes(w))){if(needWords.some(w=>lo.includes(w)))rec.needs_specific=s.split(/,|\bdan\b|&/).map(x=>x.trim()).filter(Boolean);else rec.detail_usia_penyakit=s;delete ua[c];}}
-    for(const c of Object.keys(ua)){const s=ua[c],lo=s.toLowerCase();if(needWords.some(w=>lo.includes(w))){rec.needs_specific.push(...s.split(/,|\bdan\b|&/).map(x=>x.trim()).filter(Boolean));delete ua[c];}else if(s.length>25){rec.notes=s;delete ua[c];}else if(['rt','rw','dusun','asal','desa','dila','mando','bose'].some(w=>lo.includes(w))){rec.asal_rt_rw=s;delete ua[c];}}
+    for(const c of Object.keys(ua)){
+      const s=ua[c],lo=s.toLowerCase();
+      if(medWords.some(w=>lo.includes(w))){
+        rec.detail_usia_penyakit=s;
+        delete ua[c];
+      }else if(s.length>25){
+        rec.notes=s;
+        delete ua[c];
+      }else if(['rt','rw','dusun','asal','desa','dila','mando','bose'].some(w=>lo.includes(w))){
+        rec.asal_rt_rw=s;
+        delete ua[c];
+      }
+    }
     // Names
     for(const c of Object.keys(ua)){const cl=cleanN(ua[c]);if(cl){if(['G','H','I'].includes(c)){if(!rec.nama_kk){rec.nama_kk=cl;delete ua[c];}}else{if(!rec.nama_rentan){rec.nama_rentan=cl;delete ua[c];}}}}
     for(const c of Object.keys(ua)){const cl=cleanN(ua[c]);if(cl){if(!rec.nama_rentan)rec.nama_rentan=cl;else if(!rec.nama_kk)rec.nama_kk=cl;}}
