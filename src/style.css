@@ -1202,19 +1202,73 @@ body {
 
 /* RESPONSIVE LAYOUTS */
 @media (max-width: 900px) {
-  .dashboard-container {
+  .dashboard-container,
+  .dashboard-container.sidebar-collapsed {
     grid-template-columns: 1fr;
   }
   
   .sidebar {
-    height: auto;
-    position: static;
-    border-right: none;
-    border-bottom: 1px solid var(--glass-border);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 300px;
+    height: 100vh;
+    z-index: 1000;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(0); /* default visible */
+    border-right: 1px solid var(--glass-border);
+  }
+
+  .dashboard-container.sidebar-collapsed .sidebar {
+    transform: translateX(-100%);
+    margin-left: 0; 
+    opacity: 1; 
+    pointer-events: auto;
   }
   
   .main-content {
-    padding: 20px;
+    padding: 20px 16px;
+  }
+
+  .top-header {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header-info h1 {
+    font-size: 20px;
+  }
+
+  .header-info p {
+    font-size: 12px;
+  }
+
+  .flex-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .needs-split-container.charts-visible {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .header-info h1 {
+    font-size: 18px;
+  }
+  .modal-body-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1410,6 +1464,32 @@ body.light-theme .tag-highlight {
   background: #fef3c7 !important;
   color: #b45309 !important;
   border-color: #fde68a !important;
+}
+
+/* Modal Overrides for Light Theme */
+body.light-theme .modal {
+  background-color: rgba(15, 23, 42, 0.5);
+}
+body.light-theme .modal-content {
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+}
+body.light-theme .close-modal:hover {
+  color: #0f172a;
+}
+body.light-theme .detail-box {
+  background: #f8fafc;
+}
+body.light-theme .alert-box {
+  background: rgba(225, 29, 72, 0.05);
+  border-color: rgba(225, 29, 72, 0.2);
+  color: #9f1239;
+}
+
+@media (max-width: 900px) {
+  body.light-theme .sidebar {
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.15);
+  }
 }
 
 /* ─── EMPTY STATE VIEW ────────────────────────────────────────────── */
