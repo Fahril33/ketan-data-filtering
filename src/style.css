@@ -165,9 +165,68 @@ body {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 12px;
+  margin-bottom: 0;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.btn-icon-only {
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  padding: 5px 7px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-icon-only:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+.btn-icon-only svg {
+  width: 14px;
+  height: 14px;
+}
+.btn-icon-only.spinning svg {
+  animation: spin 0.8s linear infinite;
+}
+
+.btn-text-small {
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  padding: 3px 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.btn-text-small:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+.btn-text-icon {
+  width: 12px;
+  height: 12px;
 }
 
 .drop-zone {
@@ -352,6 +411,44 @@ body {
   gap: 8px;
 }
 
+.compound-list {
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.compound-list::-webkit-scrollbar {
+  width: 4px;
+}
+.compound-list::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+}
+
+.compound-item {
+  font-size: 11px;
+  position: relative;
+}
+
+.compound-count-badge {
+  margin-left: auto;
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--accent-color);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.empty-compound-msg {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 4px 0;
+}
+
 /* MAIN CONTENT */
 .main-content {
   padding: 30px 40px;
@@ -534,6 +631,50 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Lucide Icon Standardizations */
+.lucide {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.25px;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.btn-icon {
+  margin-right: 6px;
+  width: 14px !important;
+  height: 14px !important;
+  stroke-width: 2.5px;
+}
+
+.sidebar-header-icon {
+  margin-right: 6px;
+  color: var(--accent-color);
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.card-header-icon {
+  color: var(--accent-color);
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.panel-header-icon {
+  color: var(--accent-color);
+  width: 18px !important;
+  height: 18px !important;
+  margin-right: 4px;
+}
+
+.chart-title-icon {
+  color: var(--accent-color);
+  width: 15px !important;
+  height: 15px !important;
+  margin-right: 6px;
 }
 
 .card-header p {
@@ -781,10 +922,47 @@ body {
   border-bottom: none;
 }
 
-/* Table Highlighting */
 .text-highlight {
   color: var(--text-white) !important;
   font-weight: 600;
+}
+
+.clickable-name {
+  cursor: pointer;
+  position: relative;
+  transition: var(--transition-fast);
+}
+.clickable-name:hover {
+  color: var(--accent-color) !important;
+  text-decoration: underline;
+}
+
+/* Toast Notifications */
+.toast-notification {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--glass-border);
+  color: var(--text-white);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+.toast-notification.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .badge {

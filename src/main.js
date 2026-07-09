@@ -48,6 +48,8 @@ let isExactMatch = false;
 let selectedDesa = 'all';
 let selectedDusun = 'all';
 let selectedCategories = new Set(); // multi-select from data
+let selectedCompound = new Set();   // multi-category combination keys
+let categoryFilterMode = 'tunggal'; // 'tunggal' or 'ganda'
 
 let needsChart = null;
 let cohortChart = null;
@@ -81,6 +83,21 @@ function getUniqueCategories() {
   return [...cats].sort();
 }
 
+function getCategoryKey(cats) {
+  return [...cats].sort().join(' + ');
+}
+
+function getUniqueCompoundCategories() {
+  const comboCounts = {};
+  allData.forEach(r => {
+    // Treat every exact category combination (even singles) as a distinct signature
+    const key = getCategoryKey(r.kategori_rentan);
+    comboCounts[key] = (comboCounts[key] || 0) + 1;
+  });
+  // Sort by frequency descending
+  return Object.entries(comboCounts).sort((a, b) => b[1] - a[1]).map(([key, count]) => ({ key, count }));
+}
+
 // ─── Build sidebar filters from data ────────────────────────────────
 function rebuildDynamicFilters() {
   // Desa dropdown
@@ -97,7 +114,7 @@ function rebuildDynamicFilters() {
   // Dusun dropdown
   rebuildDusunDropdown();
 
-  // Categories checkboxes
+  // Categories checkboxes (Tunggal / Individual)
   const catContainer = document.getElementById('categories-filter-list');
   catContainer.innerHTML = '';
   selectedCategories.clear();
@@ -109,8 +126,10 @@ function rebuildDynamicFilters() {
     input.type = 'checkbox'; input.checked = true; input.className = 'cat-chk-item';
     input.setAttribute('data-cat', cat);
     input.addEventListener('change', e => {
+      switchToFilterMode('tunggal');
       if (e.target.checked) selectedCategories.add(cat);
       else selectedCategories.delete(cat);
+      updateToggleAllBtn();
       applyAndRender();
     });
     const span = document.createElement('span');
@@ -120,6 +139,45 @@ function rebuildDynamicFilters() {
     label.appendChild(document.createTextNode(cat));
     catContainer.appendChild(label);
   });
+  updateToggleAllBtn();
+
+  // Compound categories (Ganda)
+  const compContainer = document.getElementById('compound-filter-list');
+  if (compContainer) {
+    compContainer.innerHTML = '';
+    selectedCompound.clear();
+    const compounds = getUniqueCompoundCategories();
+    if (compounds.length === 0) {
+      compContainer.innerHTML = '<span class="empty-compound-msg">Tidak ada kategori ganda ditemukan</span>';
+    } else {
+      compounds.forEach(({ key, count }) => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-container compound-item';
+        const input = document.createElement('input');
+        input.type = 'checkbox'; input.checked = false; input.className = 'compound-chk-item';
+        input.setAttribute('data-compound', key);
+        input.addEventListener('change', e => {
+          switchToFilterMode('ganda');
+          if (e.target.checked) selectedCompound.add(key);
+          else selectedCompound.delete(key);
+          updateToggleAllCompoundBtn();
+          applyAndRender();
+        });
+        const span = document.createElement('span');
+        span.className = 'checkmark';
+        const badge = document.createElement('span');
+        badge.className = 'compound-count-badge';
+        badge.textContent = count;
+        label.appendChild(input);
+        label.appendChild(span);
+        label.appendChild(document.createTextNode(key));
+        label.appendChild(badge);
+        compContainer.appendChild(label);
+      });
+    }
+    updateToggleAllCompoundBtn();
+  }
+  syncFilterModeUI();
 }
 
 function rebuildDusunDropdown() {
@@ -135,6 +193,57 @@ function rebuildDusunDropdown() {
   else { dusunSel.value = 'all'; selectedDusun = 'all'; }
 }
 
+function updateToggleAllBtn() {
+  const btn = document.getElementById('toggle-all-categories');
+  if (!btn) return;
+  const allCats = getUniqueCategories();
+  const allChecked = allCats.length > 0 && allCats.every(c => selectedCategories.has(c));
+  if (allChecked) {
+    btn.innerHTML = '<i data-lucide="check-square" class="btn-text-icon"></i> Semua';
+  } else {
+    btn.innerHTML = '<i data-lucide="square" class="btn-text-icon"></i> Semua';
+  }
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function updateToggleAllCompoundBtn() {
+  const btn = document.getElementById('toggle-all-compound');
+  if (!btn) return;
+  const compounds = getUniqueCompoundCategories();
+  const allChecked = compounds.length > 0 && compounds.every(({ key }) => selectedCompound.has(key));
+  if (allChecked) {
+    btn.innerHTML = '<i data-lucide="check-square" class="btn-text-icon"></i> Semua';
+  } else {
+    btn.innerHTML = '<i data-lucide="square" class="btn-text-icon"></i> Semua';
+  }
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function switchToFilterMode(mode) {
+  if (categoryFilterMode === mode) return;
+  categoryFilterMode = mode;
+
+  if (mode === 'tunggal') {
+    // Deactivate ganda: uncheck all compound checkboxes
+    selectedCompound.clear();
+    document.querySelectorAll('#compound-filter-list .compound-chk-item').forEach(cb => cb.checked = false);
+    updateToggleAllCompoundBtn();
+  } else {
+    // Deactivate tunggal: uncheck all individual checkboxes
+    selectedCategories.clear();
+    document.querySelectorAll('#categories-filter-list .cat-chk-item').forEach(cb => cb.checked = false);
+    updateToggleAllBtn();
+  }
+  syncFilterModeUI();
+}
+
+function syncFilterModeUI() {
+  const tunggalGroup = document.getElementById('categories-filter-list')?.closest('.filter-group');
+  const gandaGroup = document.getElementById('compound-filter-list')?.closest('.filter-group');
+  if (tunggalGroup) tunggalGroup.classList.toggle('filter-inactive', categoryFilterMode !== 'tunggal');
+  if (gandaGroup) gandaGroup.classList.toggle('filter-inactive', categoryFilterMode !== 'ganda');
+}
+
 // ─── UI Wiring ──────────────────────────────────────────────────────
 function initUI() {
   // Theme Switcher Initialization & Event Listener
@@ -142,23 +251,24 @@ function initUI() {
   const savedTheme = localStorage.getItem('theme') || 'dark';
   if (savedTheme === 'light') {
     document.body.classList.add('light-theme');
-    themeToggle.textContent = '🌙 Mode Gelap';
+    themeToggle.innerHTML = '<i data-lucide="moon" class="btn-icon"></i>Mode Gelap';
   } else {
     document.body.classList.remove('light-theme');
-    themeToggle.textContent = '☀️ Mode Terang';
+    themeToggle.innerHTML = '<i data-lucide="sun" class="btn-icon"></i>Mode Terang';
   }
 
   themeToggle.addEventListener('click', () => {
     const isLight = document.body.classList.toggle('light-theme');
     if (isLight) {
       localStorage.setItem('theme', 'light');
-      themeToggle.textContent = '🌙 Mode Gelap';
+      themeToggle.innerHTML = '<i data-lucide="moon" class="btn-icon"></i>Mode Gelap';
     } else {
       localStorage.setItem('theme', 'dark');
-      themeToggle.textContent = '☀️ Mode Terang';
+      themeToggle.innerHTML = '<i data-lucide="sun" class="btn-icon"></i>Mode Terang';
     }
     // Re-render components that rely on js color tokens (e.g. charts)
     renderCharts();
+    if (window.lucide) window.lucide.createIcons();
   });
 
   document.getElementById('desa-select').addEventListener('change', e => {
@@ -240,8 +350,11 @@ function initUI() {
   function toggleChartsPanel() {
     const isVisible = splitContainer.classList.toggle('charts-visible');
     toggleChartsBtn.classList.toggle('active', isVisible);
-    toggleChartsBtn.innerHTML = isVisible ? '📊 Sembunyikan' : '📊 Charts';
+    toggleChartsBtn.innerHTML = isVisible 
+      ? '<i data-lucide="eye-off" class="btn-icon"></i>Sembunyikan' 
+      : '<i data-lucide="bar-chart-3" class="btn-icon"></i>Charts';
     if (isVisible) renderCharts();
+    if (window.lucide) window.lucide.createIcons();
   }
 
   toggleChartsBtn.addEventListener('click', toggleChartsPanel);
@@ -254,6 +367,77 @@ function initUI() {
   document.getElementById('download-needs-csv').addEventListener('click', exportNeedsSummaryCSV);
   const geoBtn = document.getElementById('download-geo-csv');
   if (geoBtn) geoBtn.addEventListener('click', exportGeoCSV);
+
+  // Refresh data button
+  const refreshBtn = document.getElementById('refresh-data-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      refreshBtn.classList.add('spinning');
+      refreshBtn.disabled = true;
+      // Use a wrapper that removes the spinner once fetchSpreadsheetData finishes
+      const origComplete = Papa.parse;
+      fetchSpreadsheetData();
+      // Remove spinner after a reasonable timeout (fetchSpreadsheetData is async via PapaParse)
+      const checkDone = setInterval(() => {
+        const status = document.getElementById('file-status');
+        if (status && !status.textContent.includes('Mengambil')) {
+          refreshBtn.classList.remove('spinning');
+          refreshBtn.disabled = false;
+          clearInterval(checkDone);
+        }
+      }, 500);
+      // Safety timeout: remove spinner after 30s regardless
+      setTimeout(() => { refreshBtn.classList.remove('spinning'); refreshBtn.disabled = false; clearInterval(checkDone); }, 30000);
+    });
+  }
+
+  // Toggle All Categories (Select All / Unselect All)
+  const toggleAllBtn = document.getElementById('toggle-all-categories');
+  if (toggleAllBtn) {
+    toggleAllBtn.addEventListener('click', () => {
+      switchToFilterMode('tunggal');
+      const allCats = getUniqueCategories();
+      const allChecked = allCats.length > 0 && allCats.every(c => selectedCategories.has(c));
+
+      const checkboxes = document.querySelectorAll('#categories-filter-list .cat-chk-item');
+
+      if (allChecked) {
+        selectedCategories.clear();
+        checkboxes.forEach(cb => cb.checked = false);
+        toggleAllBtn.innerHTML = '<i data-lucide="square" class="btn-text-icon"></i> Semua';
+      } else {
+        allCats.forEach(c => selectedCategories.add(c));
+        checkboxes.forEach(cb => cb.checked = true);
+        toggleAllBtn.innerHTML = '<i data-lucide="check-square" class="btn-text-icon"></i> Semua';
+      }
+      applyAndRender();
+      if (window.lucide) window.lucide.createIcons();
+    });
+  }
+
+  // Toggle All Compound Categories
+  const toggleAllCompoundBtn = document.getElementById('toggle-all-compound');
+  if (toggleAllCompoundBtn) {
+    toggleAllCompoundBtn.addEventListener('click', () => {
+      switchToFilterMode('ganda');
+      const compounds = getUniqueCompoundCategories();
+      const allChecked = compounds.length > 0 && compounds.every(({ key }) => selectedCompound.has(key));
+
+      const checkboxes = document.querySelectorAll('#compound-filter-list .compound-chk-item');
+
+      if (allChecked) {
+        selectedCompound.clear();
+        checkboxes.forEach(cb => cb.checked = false);
+        toggleAllCompoundBtn.innerHTML = '<i data-lucide="square" class="btn-text-icon"></i> Semua';
+      } else {
+        compounds.forEach(({ key }) => selectedCompound.add(key));
+        checkboxes.forEach(cb => cb.checked = true);
+        toggleAllCompoundBtn.innerHTML = '<i data-lucide="check-square" class="btn-text-icon"></i> Semua';
+      }
+      applyAndRender();
+      if (window.lucide) window.lucide.createIcons();
+    });
+  }
 }
 
 // ─── FILTER & RENDER PIPELINE ───────────────────────────────────────
@@ -273,7 +457,16 @@ function applyAndRender() {
   filteredData = allData.filter(row => {
     if (selectedDesa !== 'all' && row.desa !== selectedDesa) return false;
     if (selectedDusun !== 'all' && row.dusun !== selectedDusun) return false;
-    if (!row.kategori_rentan.some(c => selectedCategories.has(c))) return false;
+
+    // Category filter: only the active mode applies
+    if (categoryFilterMode === 'tunggal') {
+      if (!row.kategori_rentan.some(c => selectedCategories.has(c))) return false;
+    } else {
+      const rowCompoundKey = getCategoryKey(row.kategori_rentan);
+      if (selectedCompound.size > 0 && !selectedCompound.has(rowCompoundKey)) return false;
+      if (selectedCompound.size === 0) return false;
+    }
+
     if (searchQuery.trim()) {
       const q = isCaseSensitive ? searchQuery.trim() : searchQuery.trim().toLowerCase();
       const match = row.all_needs.some(n => {
@@ -291,6 +484,7 @@ function applyAndRender() {
   if (geoTbody) renderGeoBreakdown();
   renderCharts();
   renderIndividualTable();
+  if (window.lucide) window.lucide.createIcons();
 }
 
 // ─── KPI CARDS (fully dynamic from data categories) ─────────────────
@@ -299,18 +493,18 @@ function renderKPIs() {
   grid.innerHTML = '';
 
   // Total card
-  const totalCard = makeKPICard('📊', 'Total Terdata', filteredData.length, `${new Set(filteredData.map(r=>r.hh_id).filter(Boolean)).size} KK`);
+  const totalCard = makeKPICard('bar-chart-3', 'Total Terdata', filteredData.length, `${new Set(filteredData.map(r=>r.hh_id).filter(Boolean)).size} KK`);
   grid.appendChild(totalCard);
 
   // One card per unique category in filtered data
   const catCounts = {};
   filteredData.forEach(r => r.kategori_rentan.forEach(c => { catCounts[c] = (catCounts[c]||0)+1; }));
   const catIcons = {
-    'Lanjut Usia (Lansia)': '🧓', 'Bayi (<12 Bulan)': '👶', 'Balita (1-5 Tahun)': '🧸',
-    'Ibu Hamil': '🤰', 'Ibu Menyusui': '🤱', 'Disabilitas': '♿', 'Penyakit Kronis': '🩺', 'Umum': '👤'
+    'Lanjut Usia (Lansia)': 'heart', 'Bayi (<12 Bulan)': 'baby', 'Balita (1-5 Tahun)': 'smile',
+    'Ibu Hamil': 'sparkles', 'Ibu Menyusui': 'droplet', 'Disabilitas': 'accessibility', 'Penyakit Kronis': 'shield-alert', 'Umum': 'user'
   };
   Object.entries(catCounts).sort((a,b) => b[1]-a[1]).forEach(([cat, count]) => {
-    grid.appendChild(makeKPICard(catIcons[cat]||'👥', cat, count, ''));
+    grid.appendChild(makeKPICard(catIcons[cat]||'users', cat, count, ''));
   });
 }
 
@@ -318,7 +512,7 @@ function makeKPICard(icon, title, value, sub) {
   const div = document.createElement('div');
   div.className = 'kpi-card';
   div.innerHTML = `
-    <div class="kpi-icon">${icon}</div>
+    <div class="kpi-icon"><i data-lucide="${icon}"></i></div>
     <div class="kpi-info">
       <h3>${title}</h3>
       <p class="kpi-value">${value}</p>
@@ -676,8 +870,9 @@ function renderIndividualTable() {
     return;
   }
 
-  filteredData.slice(start, end).forEach(row => {
+  filteredData.slice(start, end).forEach((row, index) => {
     const tr = document.createElement('tr');
+    const rowNo = start + index + 1;
     let ageText = row.umur !== null ? `${row.umur} th` : '-';
     if (row.umur_bulan !== null && row.umur_bulan < 12) ageText = `${row.umur_bulan} bl`;
     else if (row.umur_bulan !== null && row.umur_bulan <= 60) ageText = `${Math.floor(row.umur_bulan/12)} th ${row.umur_bulan%12} bl`;
@@ -700,8 +895,10 @@ function renderIndividualTable() {
     actionTd.appendChild(btn);
 
     tr.innerHTML = `
-      <td style="font-family:var(--font-display);font-weight:500">${row.hh_id||'N/A'}</td>
-      <td class="text-highlight">${row.nama_rentan||'N/A'}</td>
+      <td style="font-family:var(--font-display);font-weight:500">${rowNo}</td>
+      <td class="text-highlight clickable-name" data-name="${row.nama_rentan || ''}" title="Klik untuk menyalin nama">
+        ${row.nama_rentan||'N/A'}
+      </td>
       <td>${row.nama_kk||'N/A'}</td>
       <td>${ageText}</td>
       <td>${catHTML}</td>
@@ -711,10 +908,26 @@ function renderIndividualTable() {
     tbody.appendChild(tr);
   });
 
+  // Handle click on name cell to copy via event delegation
+  tbody.addEventListener('click', e => {
+    const cell = e.target.closest('.clickable-name');
+    if (cell) {
+      const name = cell.getAttribute('data-name');
+      if (name) {
+        navigator.clipboard.writeText(name).then(() => {
+          showToast(`Nama "${name}" berhasil disalin`);
+        });
+      }
+    }
+  });
+
   // Pagination
   const pag = document.getElementById('table-pagination-controls');
   pag.innerHTML = '';
-  if (totalPages <= 1) return;
+  if (totalPages <= 1) {
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
   const mkBtn = (label, page, disabled) => {
     const b = document.createElement('button'); b.className = `page-btn ${page===currentPage?'active':''}`;
     b.innerHTML = label; b.disabled = disabled;
@@ -724,6 +937,7 @@ function renderIndividualTable() {
   pag.appendChild(mkBtn('«', currentPage-1, currentPage===1));
   for (let i = Math.max(1,currentPage-2); i <= Math.min(totalPages,currentPage+2); i++) pag.appendChild(mkBtn(i, i, false));
   pag.appendChild(mkBtn('»', currentPage+1, currentPage===totalPages));
+  if (window.lucide) window.lucide.createIcons();
 }
 
 // ─── DETAIL MODAL ───────────────────────────────────────────────────
@@ -846,6 +1060,23 @@ function downloadCSV(csvContent, filename) {
   URL.revokeObjectURL(url);
 }
 
+function showToast(message) {
+  let toast = document.getElementById('toast-notification');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-notification';
+    toast.className = 'toast-notification';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `<i data-lucide="check-circle" style="color:var(--color-success);width:16px;height:16px;stroke-width:2.5px;vertical-align:middle;margin-right:4px;"></i> ${message}`;
+  if (window.lucide) window.lucide.createIcons();
+  toast.classList.add('show');
+  clearTimeout(toast.timeoutId);
+  toast.timeoutId = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 2000);
+}
+
 // ─── HELPERS ────────────────────────────────────────────────────────
 function getBadge(cat) {
   if (cat.includes('Lansia')) return 'badge-warning';
@@ -861,7 +1092,7 @@ function getBadge(cat) {
 function handleUpload(file) {
   const status = document.getElementById('file-status');
   const mainStatus = document.getElementById('main-file-status');
-  const processingText = '⚡ Memproses data…';
+  const processingText = '<i data-lucide="loader-2" class="animate-spin btn-icon"></i>Memproses data…';
   
   if (status) {
     status.innerHTML = processingText; status.style.color = 'var(--color-warning)';
@@ -869,6 +1100,7 @@ function handleUpload(file) {
   if (mainStatus) {
     mainStatus.innerHTML = processingText; mainStatus.style.color = 'var(--color-warning)';
   }
+  if (window.lucide) window.lucide.createIcons();
 
   const reader = new FileReader();
   reader.onload = e => {
@@ -918,7 +1150,7 @@ function handleUpload(file) {
       if (dusunSel) dusunSel.value = 'all';
 
       allData = clientParse(structured);
-      const successText = `✅ ${file.name} (${allData.length} records)`;
+      const successText = `<i data-lucide="check-circle-2" class="btn-icon" style="color:var(--color-success);vertical-align:middle;margin-right:4px;"></i>${file.name} (${allData.length} records)`;
       if (status) {
         status.innerHTML = successText; status.style.color = 'var(--color-success)';
       }
@@ -927,15 +1159,17 @@ function handleUpload(file) {
       }
       rebuildDynamicFilters();
       applyAndRender();
+      if (window.lucide) window.lucide.createIcons();
     } catch (err) {
       console.error(err);
-      const errorText = `❌ ${err.message}`;
+      const errorText = `<i data-lucide="alert-circle" class="btn-icon" style="color:var(--color-danger);vertical-align:middle;margin-right:4px;"></i>${err.message}`;
       if (status) {
         status.innerHTML = errorText; status.style.color = 'var(--color-danger)';
       }
       if (mainStatus) {
         mainStatus.innerHTML = errorText; mainStatus.style.color = 'var(--color-danger)';
       }
+      if (window.lucide) window.lucide.createIcons();
     }
   };
   reader.readAsArrayBuffer(file);
@@ -946,7 +1180,7 @@ function fetchSpreadsheetData() {
   
   const status = document.getElementById('file-status');
   const mainStatus = document.getElementById('main-file-status');
-  const processingText = '⚡ Mengambil data dari Spreadsheet...';
+  const processingText = '<i data-lucide="loader-2" class="animate-spin btn-icon"></i>Mengambil data dari Spreadsheet...';
   
   if (status) {
     status.innerHTML = processingText; status.style.color = 'var(--color-warning)';
@@ -954,6 +1188,7 @@ function fetchSpreadsheetData() {
   if (mainStatus) {
     mainStatus.innerHTML = processingText; mainStatus.style.color = 'var(--color-warning)';
   }
+  if (window.lucide) window.lucide.createIcons();
 
   Papa.parse(url, {
     download: true,
@@ -993,7 +1228,7 @@ function fetchSpreadsheetData() {
         if (dusunSel) dusunSel.value = 'all';
 
         allData = clientParse(structured);
-        const successText = `✅ Data Spreadsheet (${allData.length} records)`;
+        const successText = `<i data-lucide="check-circle-2" class="btn-icon" style="color:var(--color-success);vertical-align:middle;margin-right:4px;"></i>Spreadsheet (${allData.length} records)`;
         if (status) {
           status.innerHTML = successText; status.style.color = 'var(--color-success)';
         }
@@ -1002,26 +1237,29 @@ function fetchSpreadsheetData() {
         }
         rebuildDynamicFilters();
         applyAndRender();
+        if (window.lucide) window.lucide.createIcons();
       } catch (err) {
         console.error(err);
-        const errorText = `❌ ${err.message}`;
+        const errorText = `<i data-lucide="alert-circle" class="btn-icon" style="color:var(--color-danger);vertical-align:middle;margin-right:4px;"></i>${err.message}`;
         if (status) {
           status.innerHTML = errorText; status.style.color = 'var(--color-danger)';
         }
         if (mainStatus) {
           mainStatus.innerHTML = errorText; mainStatus.style.color = 'var(--color-danger)';
         }
+        if (window.lucide) window.lucide.createIcons();
       }
     },
     error: function(err) {
       console.error(err);
-      const errorText = `❌ Gagal mengambil data: ${err.message || 'Error jaringan'}`;
+      const errorText = `<i data-lucide="alert-circle" class="btn-icon" style="color:var(--color-danger);vertical-align:middle;margin-right:4px;"></i>Gagal mengambil data: ${err.message || 'Error jaringan'}`;
       if (status) {
         status.innerHTML = errorText; status.style.color = 'var(--color-danger)';
       }
       if (mainStatus) {
         mainStatus.innerHTML = errorText; mainStatus.style.color = 'var(--color-danger)';
       }
+      if (window.lucide) window.lucide.createIcons();
     }
   });
 }
@@ -1032,115 +1270,174 @@ function colLetter(n) {
   return s;
 }
 
-// ─── CLIENT-SIDE HEURISTIC PARSER ───────────────────────────────────
-const SURVEYOR_NAMES = ['Agelia Magi','7210031309120007','DEPRIN','Mirawati','HERLAMBANG P. PRATAMA','MARIA TALANTAN','Marta Tamolo','Melani','Aqila Ramadani'];
+// ─── CLIENT-SIDE COLUMN-BASED PARSER ────────────────────────────────
+// Direct column mapping — no heuristic guessing, no borrowing from adjacent cells.
+// Column layout:
+//   A=Timestamp, B=ID Unik, C=Dusun, D=Desa, E=Kecamatan,
+//   F=Nama KK, G=No HP, H=Asal RT/RW, I=No KK (NIK),
+//   J=Nama Rentan, K=Gender, L=Umur, M=Kategori Rentan,
+//   N=Detail Usia/Lainnya, O=Detail Kondisi Khusus,
+//   P=Kebutuhan Spesifik, Q=Kondisi Kesehatan
 
 function clientParse(rows) {
   const records = [];
-  for (const rIdx of Object.keys(rows).map(Number).sort((a,b)=>a-b)) {
+
+  for (const rIdx of Object.keys(rows).map(Number).sort((a,b) => a-b)) {
     const row = rows[rIdx];
-    const rec = { row_idx:rIdx, timestamp:null, dusun:'Lainnya', desa:'Lainnya', kecamatan:'Lainnya',
-      village_id:null, hh_id:null, nama_kk:null, phone:null, asal_rt_rw:null, nik_kk:null,
-      surveyor:'Tidak Diketahui', umur:null, gender:'Tidak Diketahui', kategori_rentan:[],
-      detail_usia_penyakit:null, needs_dropdown:[], needs_specific:[], notes:null, nama_rentan:null, umur_bulan:null };
 
-    const ua = {};
-    for (const [c,v] of Object.entries(row)) { if (v!=null && String(v).trim()) ua[c]=String(v).trim(); }
+    // Helper: get trimmed string value for a column, or null if empty
+    const col = (letter) => {
+      const v = row[letter];
+      if (v == null) return null;
+      const s = String(v).trim();
+      return s || null;
+    };
 
-    // Timestamp
-    for (const c of Object.keys(ua)) { const s=ua[c]; if((/^\d+(\.\d+)?$/.test(s)&&+s>40000&&+s<50000)||(s.includes('/')&&s.includes(':'))) { rec.timestamp=s; delete ua[c]; break; } }
-    // Desa/Kec
-    for (const c of Object.keys(ua)) {
-      const s = ua[c];
-      const mapped = mapDesa(s);
-      if (mapped) {
-        rec.desa = mapped;
-        delete ua[c];
-      } else if (['Nokilalaki','Palolo'].includes(s)) {
-        rec.kecamatan = s;
-        delete ua[c];
+    const rec = {
+      row_idx: rIdx,
+      timestamp: col('A'),
+      dusun: 'Lainnya',
+      desa: 'Lainnya',
+      kecamatan: 'Lainnya',
+      village_id: null,
+      hh_id: null,
+      nama_kk: null,
+      phone: col('G'),
+      asal_rt_rw: col('H'),
+      nik_kk: col('I'),
+      surveyor: 'Tidak Diketahui',
+      umur: null,
+      gender: 'Tidak Diketahui',
+      kategori_rentan: [],
+      detail_usia_penyakit: null,
+      needs_dropdown: [],
+      needs_specific: [],
+      notes: null,
+      nama_rentan: null,
+      umur_bulan: null
+    };
+
+    // B: ID Unik (e.g. KR-0001)
+    const colB = col('B');
+    if (colB) rec.hh_id = colB;
+
+    // C: Dusun
+    const colC = col('C');
+    if (colC) {
+      rec.dusun = /^\d+(\.0)?$/.test(colC) ? String(parseInt(parseFloat(colC))) : colC;
+    }
+
+    // D: Desa
+    const colD = col('D');
+    if (colD) {
+      const mapped = mapDesa(colD);
+      rec.desa = mapped || colD;
+    }
+
+    // E: Kecamatan
+    const colE = col('E');
+    if (colE) rec.kecamatan = colE;
+
+    // F: Nama Kepala Keluarga
+    const colF = col('F');
+    rec.nama_kk = colF || 'Tidak Diketahui';
+
+    // J: Nama Lengkap Kelompok Rentan
+    const colJ = col('J');
+    rec.nama_rentan = colJ || rec.nama_kk;
+
+    // K: Jenis Kelamin
+    const colK = col('K');
+    if (colK && ['Laki-laki','Perempuan'].includes(colK)) rec.gender = colK;
+
+    // L: Umur (Tahun)
+    const colL = col('L');
+    if (colL && /^\d+(\.\d+)?$/.test(colL)) rec.umur = parseFloat(colL);
+
+    // M: Kategori Rentan
+    const colM = col('M');
+    if (colM) rec.kategori_rentan = colM.split(',').map(x => x.trim()).filter(Boolean);
+
+    // N: Detail Usia / Detail Lainnya
+    const colN = col('N');
+    if (colN) rec.detail_usia_penyakit = colN;
+
+    // O: Kebutuhan Spesifik & Mendesak
+    const colO = col('O');
+    if (colO) {
+      const oNeeds = colO.split(/,|\bdan\b|&|\+/).map(x => x.trim()).filter(Boolean);
+      rec.needs_specific = [...rec.needs_specific, ...oNeeds];
+    }
+
+    // P: Kondisi Kesehatan Saat Ini & Q: Catatan Khusus Petugas
+    const colP = col('P');
+    const colQ = col('Q');
+    const combinedNotes = [];
+    if (colP) combinedNotes.push(`Kondisi Kesehatan: ${colP}`);
+    if (colQ) combinedNotes.push(`Catatan Khusus: ${colQ}`);
+    if (combinedNotes.length > 0) {
+      rec.notes = combinedNotes.join('\n\n');
+    }
+
+    // Age months inference
+    rec.umur_bulan = parseMonths(rec.detail_usia_penyakit, rec.umur);
+
+    // Category inference if column M was empty
+    if (!rec.kategori_rentan.length) {
+      if (rec.umur !== null) {
+        if (rec.umur >= 60) rec.kategori_rentan.push('Lanjut Usia (Lansia)');
+        else if (rec.umur_bulan !== null) {
+          if (rec.umur_bulan < 12) rec.kategori_rentan.push('Bayi');
+          else if (rec.umur_bulan <= 60) rec.kategori_rentan.push('Balita');
+        }
       }
+      const d = (rec.detail_usia_penyakit || '').toLowerCase();
+      if (d.includes('hamil') || d.includes('kandungan')) rec.kategori_rentan.push('Ibu Hamil');
+      if (d.includes('menyusui')) rec.kategori_rentan.push('Ibu Menyusui');
+      if (d.includes('disabilitas')) rec.kategori_rentan.push('Disabilitas');
+      if (['kronis','stroke','diabetes','asma'].some(w => d.includes(w))) rec.kategori_rentan.push('Penyakit Kronis');
     }
-    // Surveyor
-    for (const c of Object.keys(ua)) { if(SURVEYOR_NAMES.includes(ua[c])){rec.surveyor=ua[c];delete ua[c];} }
-    // Gender
-    for (const c of Object.keys(ua)) { if(['Laki-laki','Perempuan'].includes(ua[c])){rec.gender=ua[c];delete ua[c];} }
-    // KR IDs
-    const kr=[]; for(const c of Object.keys(ua)){const s=ua[c];if(s.startsWith('KR-')&&/^KR-\d+$/.test(s))kr.push({c,s});}
-    for(const{c,s}of kr){const n=+s.split('-')[1];if([1,60,90,200,417,581,661,754,839,864,976,986].includes(n))rec.village_id=s;else rec.hh_id=s;delete ua[c];}
-    // NIK
-    for(const c of Object.keys(ua)){const s=ua[c];if(/^\d+$/.test(s)&&s.length>=15){rec.nik_kk=s;delete ua[c];}}
-    // Phone
-    for(const c of Object.keys(ua)){const s=ua[c];if(/^08\d+$/.test(s)||(/^\d+$/.test(s)&&s.length>=9&&s.length<=13)||s.includes('E10')){rec.phone=s;delete ua[c];}}
-    // Dusun (C)
-    if(ua.C&&/^\d+(\.0)?$/.test(ua.C)){rec.dusun=String(parseInt(parseFloat(ua.C)));delete ua.C;}
-    // Umur (L)
-    if(ua.L&&/^\d+(\.0)?$/.test(ua.L)){rec.umur=parseFloat(ua.L);delete ua.L;}
-    // Dropdown (dinonaktifkan sesuai permintaan: kebutuhan hanya dari kolom O)
-    // const dd=['Selimut, Sembako, Kelambu','Susu Formula, Popok, Obat obantan balita','Gangguan perilaku'];
-    // for(const c of Object.keys(ua)){if(dd.includes(ua[c])){rec.needs_dropdown=ua[c].split(',').map(s=>s.trim());delete ua[c];}}
-    // Category
-    const co=['Bayi / Balita','Lanjut Usia (Lansia)','Ibu Hamil','Ibu Menyusui','Disabilitas (Fisik / Sensorik / Mental)','Penyakit Kronis'];
-    for(const c of Object.keys(ua)){const s=ua[c];if(co.some(o=>s===o||s.startsWith(o))){rec.kategori_rentan=s.split(',').map(x=>x.trim());delete ua[c];}}
-    
-    // Kebutuhan spesifik - KHUSUS dari kolom O
-    if(ua.O) {
-      rec.needs_specific = String(ua.O).split(/,|\bdan\b|&|\+/).map(x=>x.trim()).filter(Boolean);
-      delete ua.O;
-    }
-    
-    // Details vs notes
-    const medWords=['bulan','tahun','hari','kandungan','menyusui','penyakit','stroke','diabetes','asma','hipertensi','jantung','gula','katarak','gatal','syaraf','disabilitas','tuna','kolestrol','urat'];
-    for(const c of Object.keys(ua)){
-      const s=ua[c],lo=s.toLowerCase();
-      if(medWords.some(w=>lo.includes(w))){
-        rec.detail_usia_penyakit=s;
-        delete ua[c];
-      }else if(s.length>25){
-        rec.notes=s;
-        delete ua[c];
-      }else if(['rt','rw','dusun','asal','desa','dila','mando','bose'].some(w=>lo.includes(w))){
-        rec.asal_rt_rw=s;
-        delete ua[c];
-      }
-    }
-    // Names
-    for(const c of Object.keys(ua)){const cl=cleanN(ua[c]);if(cl){if(['G','H','I'].includes(c)){if(!rec.nama_kk){rec.nama_kk=cl;delete ua[c];}}else{if(!rec.nama_rentan){rec.nama_rentan=cl;delete ua[c];}}}}
-    for(const c of Object.keys(ua)){const cl=cleanN(ua[c]);if(cl){if(!rec.nama_rentan)rec.nama_rentan=cl;else if(!rec.nama_kk)rec.nama_kk=cl;}}
-    if(!rec.nama_kk)rec.nama_kk='Tidak Diketahui';
-    if(!rec.nama_rentan)rec.nama_rentan=rec.nama_kk;
 
-    // Age months
-    rec.umur_bulan=parseMonths(rec.detail_usia_penyakit,rec.umur);
-
-    // Category inference
-    if(!rec.kategori_rentan.length){
-      if(rec.umur!==null){if(rec.umur>=60)rec.kategori_rentan.push('Lanjut Usia (Lansia)');else if(rec.umur_bulan!==null){if(rec.umur_bulan<12)rec.kategori_rentan.push('Bayi');else if(rec.umur_bulan<=60)rec.kategori_rentan.push('Balita');}}
-      const d=(rec.detail_usia_penyakit||'').toLowerCase();
-      if(d.includes('hamil')||d.includes('kandungan'))rec.kategori_rentan.push('Ibu Hamil');
-      if(d.includes('menyusui'))rec.kategori_rentan.push('Ibu Menyusui');
-      if(d.includes('disabilitas'))rec.kategori_rentan.push('Disabilitas');
-      if(['kronis','stroke','diabetes','asma'].some(w=>d.includes(w)))rec.kategori_rentan.push('Penyakit Kronis');
-    }
     // Normalize category names
-    const ku=[];
-    for(const k of rec.kategori_rentan){const lo=k.toLowerCase().trim();
-      if(lo.includes('lansia')||lo.includes('lanjut usia'))ku.push('Lanjut Usia (Lansia)');
-      else if(lo.includes('hamil')||lo.includes('bumil'))ku.push('Ibu Hamil');
-      else if(lo.includes('menyusui')||lo.includes('busui'))ku.push('Ibu Menyusui');
-      else if(lo.includes('disabilitas'))ku.push('Disabilitas');
-      else if(lo.includes('kronis')||lo.includes('penyakit')||['stroke','diabetes','asma','jantung','hipertensi','tensi','gula','paru','bronkitis','tumor','komplikasi','saraf'].some(i=>lo.includes(i)))ku.push('Penyakit Kronis');
-      else if(lo.includes('bayi')||lo.includes('balita')){if(rec.umur_bulan!==null){ku.push(rec.umur_bulan<12?'Bayi (<12 Bulan)':'Balita (1-5 Tahun)');}else ku.push(rec.umur!==null&&rec.umur<1?'Bayi (<12 Bulan)':'Balita (1-5 Tahun)');}
+    const ku = [];
+    for (const k of rec.kategori_rentan) {
+      const lo = k.toLowerCase().trim();
+      if (lo.includes('lansia') || lo.includes('lanjut usia')) ku.push('Lanjut Usia (Lansia)');
+      else if (lo.includes('hamil') || lo.includes('bumil')) ku.push('Ibu Hamil');
+      else if (lo.includes('menyusui') || lo.includes('busui')) ku.push('Ibu Menyusui');
+      else if (lo.includes('disabilitas')) ku.push('Disabilitas');
+      else if (lo.includes('kronis') || lo.includes('penyakit') || ['stroke','diabetes','asma','jantung','hipertensi','tensi','gula','paru','bronkitis','tumor','komplikasi','saraf'].some(i => lo.includes(i))) ku.push('Penyakit Kronis');
+      else if (lo.includes('bayi') || lo.includes('balita')) {
+        if (rec.umur_bulan !== null) { ku.push(rec.umur_bulan < 12 ? 'Bayi (<12 Bulan)' : 'Balita (1-5 Tahun)'); }
+        else ku.push(rec.umur !== null && rec.umur < 1 ? 'Bayi (<12 Bulan)' : 'Balita (1-5 Tahun)');
+      }
       else ku.push(k);
     }
-    if(rec.umur!==null){if(rec.umur>=60&&!ku.includes('Lanjut Usia (Lansia)'))ku.push('Lanjut Usia (Lansia)');else if(rec.umur_bulan!==null){if(rec.umur_bulan<12&&!ku.includes('Bayi (<12 Bulan)'))ku.push('Bayi (<12 Bulan)');else if(rec.umur_bulan<=60&&!ku.includes('Balita (1-5 Tahun)'))ku.push('Balita (1-5 Tahun)');}}
-    rec.kategori_rentan=[...new Set(ku)];
-    if(!rec.kategori_rentan.length)rec.kategori_rentan=['Umum'];
+    if (rec.umur !== null) {
+      if (rec.umur >= 60 && !ku.includes('Lanjut Usia (Lansia)')) ku.push('Lanjut Usia (Lansia)');
+      else if (rec.umur_bulan !== null) {
+        if (rec.umur_bulan < 12 && !ku.includes('Bayi (<12 Bulan)')) ku.push('Bayi (<12 Bulan)');
+        else if (rec.umur_bulan <= 60 && !ku.includes('Balita (1-5 Tahun)')) ku.push('Balita (1-5 Tahun)');
+      }
+    }
+    rec.kategori_rentan = [...new Set(ku)];
+    if (!rec.kategori_rentan.length) rec.kategori_rentan = ['Umum'];
 
     // Build all_needs (raw, no normalization)
-    const allN=[],seen=new Set();
-    for(const n of[...rec.needs_dropdown,...rec.needs_specific]){const cl=n.trim();if(!cl)continue;const disp=cl[0].toUpperCase()+cl.slice(1);const key=disp.toLowerCase();if(!seen.has(key)){seen.add(key);allN.push(disp);}}
-    rec.all_needs=allN;
+    const allN = [], seen = new Set();
+    for (const n of [...rec.needs_dropdown, ...rec.needs_specific]) {
+      const cl = n.trim();
+      if (!cl) continue;
+      const lo = cl.toLowerCase();
+      if (['-', 'tidak ada', 'kosong', 'tidak butuh', 'nihil', 'tidak'].includes(lo)) continue;
+      const disp = cl[0].toUpperCase() + cl.slice(1);
+      const key = disp.toLowerCase();
+      if (!seen.has(key)) { seen.add(key); allN.push(disp); }
+    }
+    if (allN.length === 0) {
+      allN.push('Tidak Ada Kebutuhan Khusus');
+    }
+    rec.all_needs = allN;
 
     records.push(rec);
   }
@@ -1166,7 +1463,8 @@ function mapDesa(valStr) {
   if (valLower.includes('kadidia')) return 'Kadidia';
   if (valLower.includes('kamarora b') || valLower.includes('kamarora_b')) return 'Kamarora B';
   if (valLower.includes('kamarora a') || valLower.includes('kamarora_a') || valLower.includes('kamarora')) return 'Kamarora A';
-  if (valLower.includes('lemban') || valLower.includes('tongoa')) return 'Lembantongoa';
+  if (valLower.includes('lemban')) return 'Lembantongoa';
+  if (valLower.includes('tongoa')) return 'Tongoa';
   if (valLower.includes('sopu')) return 'Sopu';
   if (valLower.includes('uwenuni')) return 'Uwenuni';
   return null;

@@ -271,6 +271,17 @@ def parse_database(file_path):
                 continue
 
         # Extract names
+        if 'F' in unassigned:
+            cleaned = clean_name(unassigned['F'])
+            if cleaned:
+                record['nama_kk'] = cleaned
+                del unassigned['F']
+        if 'J' in unassigned:
+            cleaned = clean_name(unassigned['J'])
+            if cleaned:
+                record['nama_rentan'] = cleaned
+                del unassigned['J']
+
         for col in list(unassigned.keys()):
             val_str = unassigned[col]
             cleaned = clean_name(val_str)

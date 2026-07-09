@@ -14,7 +14,7 @@
       <!-- SIDEBAR -->
       <aside class="sidebar">
         <div class="brand">
-          <div class="logo-icon">📦</div>
+          <div class="logo-icon"><i data-lucide="package"></i></div>
           <div class="brand-text">
             <h2>Throw-It-App</h2>
             <p>Relief Needs Analytics</p>
@@ -22,7 +22,12 @@
         </div>
 
         <div class="file-uploader-section">
-          <h3>📂 Data Source</h3>
+          <div class="sidebar-section-header">
+            <h3><i data-lucide="database" class="sidebar-header-icon"></i> Data Source</h3>
+            <button id="refresh-data-btn" class="btn-icon-only" title="Refresh data dari Spreadsheet">
+              <i data-lucide="refresh-cw"></i>
+            </button>
+          </div>
           <div id="drop-zone" class="drop-zone">
             <span class="drop-zone-text">Drag & drop .xlsx or click</span>
             <input type="file" id="xlsx-file" accept=".xlsx" class="file-input" />
@@ -31,7 +36,7 @@
         </div>
 
         <div class="filter-group">
-          <h3>🔍 Search Kebutuhan</h3>
+          <h3><i data-lucide="search" class="sidebar-header-icon"></i> Search Kebutuhan</h3>
           <div class="search-box">
             <input type="text" id="search-input" placeholder="e.g. obat magh, susu..." />
             <button id="clear-search" class="clear-search-btn">&times;</button>
@@ -45,13 +50,13 @@
             <label class="checkbox-container" style="margin-top: 4px;">
               <input type="checkbox" id="exact-match-chk" />
               <span class="checkmark"></span>
-              Pencarian Persis (Only Typed)
+              Match Exact
             </label>
           </div>
         </div>
 
         <div class="filter-group">
-          <h3>📍 Lokasi</h3>
+          <h3><i data-lucide="map-pin" class="sidebar-header-icon"></i> Lokasi</h3>
           <div class="select-container">
             <label for="desa-select">Desa</label>
             <select id="desa-select"><option value="all">Semua Desa</option></select>
@@ -63,8 +68,25 @@
         </div>
 
         <div class="filter-group">
-          <h3>👥 Kategori Rentan</h3>
+          <div class="sidebar-section-header">
+            <h3><i data-lucide="users" class="sidebar-header-icon"></i> Kategori Tunggal</h3>
+            <button id="toggle-all-categories" class="btn-text-small" title="Pilih Semua / Hapus Semua">
+              <i data-lucide="check-square" class="btn-text-icon"></i> Semua
+            </button>
+          </div>
           <div class="categories-list" id="categories-filter-list">
+            <!-- Populated dynamically from data -->
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <div class="sidebar-section-header">
+            <h3><i data-lucide="layers" class="sidebar-header-icon"></i> Kombinasi Kategori</h3>
+            <button id="toggle-all-compound" class="btn-text-small" title="Pilih Semua / Hapus Semua">
+              <i data-lucide="square" class="btn-text-icon"></i> Semua
+            </button>
+          </div>
+          <div class="categories-list compound-list" id="compound-filter-list">
             <!-- Populated dynamically from data -->
           </div>
         </div>
@@ -81,7 +103,7 @@
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 16px;">
-            <button id="theme-toggle" class="btn btn-secondary">☀️ Mode Terang</button>
+            <button id="theme-toggle" class="btn btn-secondary"><i data-lucide="sun" id="theme-icon" class="btn-icon"></i>Mode Terang</button>
             <div class="live-indicator">
               <span class="dot blinking"></span>
               <span class="indicator-text">Active</span>
@@ -92,7 +114,7 @@
         <!-- EMPTY STATE VIEW -->
         <div id="empty-state-view" class="empty-state-view">
           <div class="empty-state-content">
-            <div class="empty-state-icon">📥</div>
+            <div class="empty-state-icon"><i data-lucide="upload-cloud"></i></div>
             <h2>Belum Ada Data Terimpor</h2>
             <p style="margin-bottom: 20px;">Silakan seret & lepas berkas Excel (.xlsx) atau klik area di bawah untuk memulai analisis</p>
             <div id="main-drop-zone" class="main-drop-zone">
@@ -115,13 +137,13 @@
             <div class="dashboard-card needs-table-panel" id="needs-summary-card">
               <div class="card-header flex-header">
                 <div>
-                  <h2>📦 Ringkasan Kebutuhan per Item</h2>
+                  <h2><i data-lucide="package" class="card-header-icon"></i> Ringkasan Kebutuhan per Item</h2>
                   <p>Jumlah individu yang membutuhkan setiap item, dikelompokkan per kategori rentan</p>
                 </div>
                 <div class="header-actions">
-                  <button id="toggle-charts-panel" class="btn btn-accent" title="Tampilkan / Sembunyikan Panel Chart">📊 Charts</button>
-                  <button id="print-needs-summary" class="btn btn-primary">🖨️ Cetak</button>
-                  <button id="download-needs-csv" class="btn btn-secondary">📥 CSV</button>
+                  <button id="toggle-charts-panel" class="btn btn-accent" title="Tampilkan / Sembunyikan Panel Chart"><i data-lucide="bar-chart-3" class="btn-icon"></i>Charts</button>
+                  <button id="print-needs-summary" class="btn btn-primary"><i data-lucide="printer" class="btn-icon"></i>Cetak</button>
+                  <button id="download-needs-csv" class="btn btn-secondary"><i data-lucide="download" class="btn-icon"></i>CSV</button>
                 </div>
               </div>
               <div class="table-scroll-container">
@@ -139,27 +161,27 @@
             <!-- RIGHT: Charts Panel (hidden by default) -->
             <div class="charts-side-panel" id="charts-side-panel">
               <div class="charts-panel-header">
-                <h3>📊 Visualisasi Data</h3>
+                <h3><i data-lucide="line-chart" class="panel-header-icon"></i> Visualisasi Data</h3>
                 <button id="close-charts-panel" class="btn-close-panel" title="Tutup Panel Charts">✕</button>
               </div>
               <div class="charts-panel-grid">
                 <div class="chart-panel-card">
-                  <div class="chart-panel-title">🏆 Top Kebutuhan</div>
+                  <div class="chart-panel-title"><i data-lucide="award" class="chart-title-icon"></i> Top Kebutuhan</div>
                   <div class="chart-panel-subtitle">Item paling banyak dibutuhkan</div>
                   <div class="chart-container-panel"><canvas id="needs-chart"></canvas></div>
                 </div>
                 <div class="chart-panel-card">
-                  <div class="chart-panel-title">🗺️ Distribusi per Desa</div>
+                  <div class="chart-panel-title"><i data-lucide="map" class="chart-title-icon"></i> Distribusi per Desa</div>
                   <div class="chart-panel-subtitle">Sebaran kebutuhan berdasarkan lokasi</div>
                   <div class="chart-container-panel"><canvas id="desa-distribution-chart"></canvas></div>
                 </div>
                 <div class="chart-panel-card">
-                  <div class="chart-panel-title">👥 Kategori Rentan</div>
+                  <div class="chart-panel-title"><i data-lucide="users" class="chart-title-icon"></i> Kategori Rentan</div>
                   <div class="chart-panel-subtitle">Proporsi individu berdasarkan kohort</div>
                   <div class="chart-container-panel"><canvas id="cohort-chart"></canvas></div>
                 </div>
                 <div class="chart-panel-card" style="display: flex; flex-direction: column;">
-                  <div class="chart-panel-title">🩺 Kebutuhan Khusus</div>
+                  <div class="chart-panel-title"><i data-lucide="activity" class="chart-title-icon"></i> Kebutuhan Khusus</div>
                   <div class="chart-panel-subtitle">Seluruh item khusus (tanpa filter, gulir untuk melihat lengkap)</div>
                   <div style="height: 320px; overflow-y: auto; position: relative; border-radius: 8px; background: rgba(0,0,0,0.1); padding: 4px;">
                     <div id="specific-needs-chart-container" style="position: relative; width: 100%;">
@@ -175,7 +197,7 @@
           <section class="dashboard-card">
             <div class="card-header flex-header">
               <div>
-                <h2>👤 Individual Explorer</h2>
+                <h2><i data-lucide="user" class="card-header-icon"></i> Individual Explorer</h2>
                 <p>Detail per individu beserta kebutuhan spesifiknya</p>
               </div>
               <div class="pagination-summary" id="table-pagination-summary">0 records</div>
@@ -184,7 +206,7 @@
               <table class="data-table" id="individual-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
+                    <th>No</th>
                     <th>Nama Rentan</th>
                     <th>Kepala Keluarga</th>
                     <th>Umur</th>
@@ -208,7 +230,7 @@
       <div class="modal-content glass">
         <span class="close-modal">&times;</span>
         <div class="modal-header">
-          <div class="modal-icon">👤</div>
+          <div class="modal-icon"><i data-lucide="user"></i></div>
           <div>
             <h2 id="modal-rentan-name"></h2>
             <p id="modal-individual-id"></p>
@@ -252,6 +274,8 @@
       </div>
     </div>
 
+    <!-- Lucide Icon Library -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
